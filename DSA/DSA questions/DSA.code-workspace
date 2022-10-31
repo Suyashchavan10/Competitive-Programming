@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "..\\DSA"
+		},
+		{
+			"path": "..\\DSA Lab"
+		},
+		{
+			"path": "..\\CA assignment"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../JavaStart"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"iostream": "cpp",
+			"ostream": "cpp"
+		}
+	}
+}

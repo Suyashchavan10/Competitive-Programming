@@ -1,0 +1,2254 @@
+Q.1.Given a binary tree root, return the maximum sum of all keys of any sub-tree which is also a Binary Search Tree (BST).
+
+/**
+ * Definition for a binary tree node.
+ * struct TreeNode {
+ *     int val;
+ *     TreeNode *left;
+ *     TreeNode *right;
+ *     TreeNode() : val(0), left(nullptr), right(nullptr) {}
+ *     TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+ *     TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+ * };
+ */
+class Solution {
+public:
+    int finalans = INT_MIN;
+    struct nodeinfo
+    {
+        int min, max, sum;
+        bool bst;
+    };
+    struct nodeinfo recur(TreeNode *root)
+    {
+        if(root->left == nullptr && root->right == nullptr)
+        {
+            struct nodeinfo leaf;
+            leaf.min = leaf.max = leaf.sum = root->val;
+            leaf.bst = true;
+            if(root->val >= 0)
+                finalans = max(finalans, root->val);
+            return leaf;
+        }
+        struct nodeinfo leftst;
+        if(root->left)
+        {
+            leftst = recur(root->left);
+        }
+        else
+        {
+            leftst.min = INT_MAX;
+            leftst.max = INT_MIN;
+            leftst.sum = 0;
+            leftst.bst = true;
+        }
+        struct nodeinfo rightst;
+        if(root->right)
+        {
+            rightst = recur(root->right);
+        }
+        else
+        {
+            rightst.min = INT_MAX;
+            rightst.max = INT_MIN;
+            rightst.sum = 0;
+            rightst.bst = true;
+        }
+        bool ans1 = leftst.bst && rightst.bst;
+        bool ans2;
+        if((leftst.max < root->val) && (rightst.min > root->val))
+            ans2 = true;
+        else 
+            ans2 = false;
+        if(ans1 && ans2)
+        {
+            finalans = max(finalans, leftst.sum+ rightst.sum+ root->val);
+        }
+        struct nodeinfo node;
+        node.min = min(root->val, min(leftst.min, rightst.min));
+        node.max = max(root->val, max(leftst.max, rightst.max));
+        node.sum = leftst.sum + rightst.sum + root->val;
+        node.bst = ans1 && ans2;
+        return node;
+        
+    }
+    int maxSumBST(TreeNode* root) {
+        struct nodeinfo tree;
+        tree = recur(root);
+        if(finalans <= 0)
+            return 0;
+        return finalans;
+    }
+};
+
+###############################################################################
+
+Q.2.Given an integer array nums and two integers lower and upper, return the number of range sums that lie in [lower, upper] inclusive.
+
+Range sum S(i, j) is defined as the sum of the elements in nums between indices i and j inclusive, where i <= j.
+
+
+struct SegmentTreeNode{
+    long st;
+    long ed;
+    int count;
+    SegmentTreeNode* left;
+    SegmentTreeNode* right;
+    SegmentTreeNode(long x, long y, int c):st(x),ed(y),count(c),left(nullptr),right(nullptr){}
+    SegmentTreeNode(long x, long y, int c, SegmentTreeNode* l, SegmentTreeNode* r):st(x),ed(y),count(c),left(l),right(r){}
+};
+class Solution {
+private:
+    int queryTree(SegmentTreeNode* root, long minIdx, long maxIdx){
+        int result=0;
+        if(root==nullptr)
+            return 0;
+        long low=root->st, high=root->ed, mid=floor(low+(high-low)/2);
+        if(maxIdx<low || minIdx>high)
+            return 0;
+        else if(low==minIdx && high==maxIdx)
+            return root->count;
+
+        if(maxIdx<=mid)
+            return queryTree(root->left, minIdx, maxIdx);
+        else if(minIdx>mid)
+            return queryTree(root->right, minIdx, maxIdx);
+        else
+            return queryTree(root->left, minIdx, mid)+queryTree(root->right, mid+1, maxIdx);
+    }
+    void update(SegmentTreeNode* root, long pivot){
+        long low=root->st, high=root->ed, mid=floor(low+(high-low)/2);
+        if(low==pivot && high==pivot){
+            root->count++;
+            return;
+        }
+        if(pivot<=mid){
+            if(root->left==nullptr)
+                root->left = new SegmentTreeNode(low, mid, 0);
+            update(root->left, pivot);
+        }
+        else{
+            if(root->right==nullptr)
+                root->right = new SegmentTreeNode(mid+1, high, 0);
+            update(root->right, pivot);
+        }
+        if(root->left!=nullptr && root->right!=nullptr){
+            root->count = root->left->count + root->right->count;
+        }
+        else if(root->left==nullptr && root->right!=nullptr){
+            root->count = root->right->count;
+        }
+        else if(root->left!=nullptr && root->right==nullptr){
+            root->count = root->left->count;
+        }
+        return;
+    }
+public:
+    int countRangeSum(vector<int>& nums, int lower, int upper) {
+        int ans=0, n=nums.size();
+        long tmp=0, minV=0, maxV=0, minVal=INT_MAX, maxVal=INT_MIN;
+        vector<long> prefixSum;
+        prefixSum.push_back(0);
+        for(int i=0; i<n; ++i){
+            if(nums[i]<minVal)
+                minVal=nums[i];
+            if(nums[i]>maxVal)
+                maxVal=nums[i];
+            tmp+=nums[i];
+            if(tmp<minV)
+                minV=tmp;
+            if(tmp>maxV)
+                maxV=tmp;
+            prefixSum.push_back(tmp);
+        }
+        if((maxVal<=0 && maxVal<lower) || (minVal>=0 && minVal>upper))
+            return 0;
+        minV=min(minV,minV-upper);
+        maxV=max(maxV,maxV-lower);
+        SegmentTreeNode* root = new SegmentTreeNode(minV, maxV, 0);
+        for(int i=0; i<=n; ++i){
+            ans+=queryTree(root,prefixSum[i]-upper,prefixSum[i]-lower);
+            update(root, prefixSum[i]);
+        }
+        return ans;
+    }
+};
+
+#################################################################
+
+Q.3.Given an integer array nums, return the number of longest increasing subsequences.
+
+Notice that the sequence has to be strictly increasing.
+
+Example 1:
+
+Input: nums = [1,3,5,4,7]
+Output: 2
+Explanation: The two longest increasing subsequences are [1, 3, 4, 7] and [1, 3, 5, 7].
+
+
+class Solution {
+    
+    struct Node{
+        int length;
+        int count;
+    
+        Node(int inLength, int inCount) : length(inLength), count(inCount)
+        {}
+    };
+    
+    struct LISBIT{
+        vector<Node> bit;
+        int size;
+        
+        LISBIT(int inSize) : size(inSize){
+            bit.resize(1+inSize, {0, 0});
+        }
+        
+        Node get(int idx){
+            
+            Node result(0 , 0);
+            
+            while(idx){    
+                if(result.length < bit[idx].length){
+                    result.length = bit[idx].length;
+                    result.count = bit[idx].count;
+                }
+                else if(result.length == bit[idx].length){
+                    result.count += bit[idx].count;
+                }
+                
+                idx -= (idx & -idx);
+            }
+            
+            return {result.length, result.count};
+        }
+        
+        void update(int idx, int length, int count){
+            
+            while(idx <= size){
+                
+                if(length > bit[idx].length){
+                    bit[idx].length = length;
+                    bit[idx].count = count;
+                }
+                else if(length == bit[idx].length){
+                    bit[idx].count += count;
+                }
+                
+                idx += (idx & -idx);
+            }
+        }
+    };
+    
+public:
+    int findNumberOfLIS(vector<int>& nums) {
+        ios_base::sync_with_stdio(false);
+        cin.tie(NULL);
+        
+        const int sz = nums.size();
+        
+        if(sz <= 1){
+            return sz;
+        }
+        
+        vector<int> numsCopy = nums;
+        sort(begin(numsCopy), end(numsCopy));
+        
+        unordered_map<int, int> numToIdMap;
+        numToIdMap[numsCopy[0]] = 1;
+        
+        for(int i=1; i<sz; i++){
+            if(numsCopy[i-1] != numsCopy[i]){
+                numToIdMap[numsCopy[i]] = i+1;
+            }
+        }
+        
+        auto bit = LISBIT(sz);
+        
+        for(auto num : nums){
+            
+            auto [length, count] = bit.get(numToIdMap[num]-1);
+            bit.update(numToIdMap[num], 1+length, max(1, count));
+        }
+        
+        return bit.get(sz).count;
+    }
+};
+
+#################################################################
+
+Q.4.Design a data structure that efficiently finds the majority element of a given subarray.
+
+The majority element of a subarray is an element that occurs threshold times or more in the subarray.
+
+Implementing the MajorityChecker class:
+
+MajorityChecker(int[] arr) Initializes the instance of the class with the given array arr.
+int query(int left, int right, int threshold) returns the element in the subarray arr[left...right] that occurs at least threshold times, or -1 if no such element exists.
+ 
+
+1. Use Segment Tree to find the majority element in a range
+2. Store the indexes of element to do Binary Search for counting occurence in given range.
+class SegmentTree
+{
+    public:
+    
+        // Segment tree array of pair <majority element, voting count>
+        pair<int,int> tree[50000];
+        
+
+        int N;
+    
+        SegmentTree(){}
+        
+        // merge two pair based on moore's algo
+        pair<int,int> merge(pair<int,int>&a , pair<int,int>&b)
+        {
+            // same element => merge both
+            if(a.first==b.first) return {a.first,a.second+b.second};
+            
+            // different element => merge larger - smaller voting count 
+            else if(a.second > b.second) return {a.first,a.second - b.second};
+            else return {b.first,b.second - a.second};
+        }
+    
+        // build segment tree to find the majority elment in the range
+        void build(int n, vector<int>&nums)
+        {  
+            N = n;
+            
+            for(int i=0;i<n;i++)tree[n+i] = {nums[i], 1};
+            
+            // merge leaf nodes to root based on moore's voting
+            for(int i=n-1;i>=1;i--)
+                tree[i] = merge(tree[2*i], tree[2*i + 1]);   
+        }
+    
+    
+        // get majority elment in the range
+        int get(int left, int right)
+        {
+            left+=N;
+            right+=N;
+            
+            pair<int,int>res = {0,0};
+            
+            while(left<=right)
+            {
+                if(left&1)
+                {
+                    res = merge(res,tree[left]);
+                    left++;
+                }
+                
+                if(!(right&1))
+                {
+                    res = merge(res,tree[right]);
+                    right--;
+                }
+                
+                left>>=1;
+                right>>=1;
+            }
+            
+            // return majority element
+            return res.first;
+        }
+};
+
+
+class MajorityChecker {
+public:
+
+    // segment tree to get majority element in range
+    SegmentTree tree;
+    
+    // track the indexes of the elements to find the freq in a range
+    unordered_map<int,vector<int>>indexes;
+    
+    MajorityChecker(vector<int>& arr) {
+        
+        // build tree
+        tree.build(arr.size(),arr);
+        
+        // store indexes of values
+        for(int i=0;i<arr.size();i++)
+            indexes[arr[i]].push_back(i);    
+    }
+    
+
+    int query(int left, int right, int threshold) {
+        
+        // get majority element in the range
+        int element = tree.get(left,right);
+        
+        auto &list = indexes[element];
+        
+        // find the freq of majority element in the range of indexes
+        int lcount = lower_bound(list.begin(),list.end(),left) - list.begin();
+        int rcount = upper_bound(list.begin(),list.end(),right) - list.begin();
+        
+        // return majority element for count >= threshold
+        if(rcount - lcount >=threshold) return element;
+        else return -1;
+    }
+};
+
+#######################################################################
+
+Q.5.You are given a string num representing the digits of a very large integer and an integer k. You are allowed to swap any two adjacent digits of the integer at most k times.
+
+Return the minimum integer you can obtain also as a string.
+
+
+/* 
+    Time: O(nlogn)
+    Space: O(n)
+    Tag: Segment Tree, Greedy (put the possible feasible smallest index in place of cur index), Queue
+    Difficulty: H (Both Logic and Implementation)
+*/
+
+class SegmentTree {
+    vector<int> tree;
+
+public:
+    SegmentTree(int size) {
+        tree.resize(4 * size + 1, 0);
+    }
+
+    void printTree() {
+        for (int num : tree) cout << num << "";
+        cout << endl;
+    }
+
+    void updateTree(int lo, int hi, int index, int upd) {
+        if (upd < lo || upd > hi) return;
+        if (lo == hi) {
+            tree[index]++;
+            return;
+        }
+        int mid = lo + (hi - lo) / 2;
+        updateTree(lo, mid, 2 * index, upd);
+        updateTree(mid + 1, hi, 2 * index + 1, upd);
+        tree[index] = tree[2 * index] + tree[2 * index + 1];
+    }
+
+    int queryTree(int lo, int hi, int index, int qs, int qe) {
+        if (qe < lo || qs > hi) return 0;
+        if (qe >= hi && qs <= lo) return tree[index];
+
+        int mid = lo + (hi - lo) / 2;
+
+        int left = queryTree(lo, mid, 2 * index, qs, qe);
+        int right = queryTree(mid + 1, hi, 2 * index + 1, qs, qe);
+        return left + right;
+    }
+};
+
+class Solution {
+public:
+    string minInteger(string num, int k) {
+        queue<int> pos[10];
+        for (int i = 0; i < num.length(); i++) {
+            pos[num[i] - '0'].push(i);
+        }
+        string res = "";
+        SegmentTree *seg = new SegmentTree((int)num.length());
+        for (int i = 0; i < num.length(); i++) {
+            if (num[i] == '-') continue;
+            int digit = num[i] - '0';
+
+            bool swapped = false;
+            for (int j = 0; j < digit; j++) {
+                if (pos[j].size() > 0) {
+                    int curNumIndex = pos[j].front();
+                    int shifts = seg->queryTree(0, num.length() - 1, 1, i, pos[j].front());
+
+                    if (curNumIndex - i - shifts <= k) {
+                        seg->updateTree(0, num.length() - 1, 1, curNumIndex);
+                        k -= curNumIndex - i - shifts;
+                        pos[j].pop();
+                        res += num[curNumIndex];
+                        num[curNumIndex] = '-';
+                        swapped = true;
+                        i--;
+                        break;
+                    }
+                }
+            }
+            if (!swapped) {
+                res += num[i];
+                pos[digit].pop();
+            }
+        }
+        return res;
+    }
+};
+
+###################################################################
+
+Q.6.Given an integer array instructions, you are asked to create a sorted array from the elements in instructions. You start with an empty container nums. For each element from left to right in instructions, insert it into nums. The cost of each insertion is the minimum of the following:
+
+The number of elements currently in nums that are strictly less than instructions[i].
+The number of elements currently in nums that are strictly greater than instructions[i].
+For example, if inserting element 3 into nums = [1,2,3,5], the cost of insertion is min(2, 1) (elements 1 and 2 are less than 3, element 5 is greater than 3) and nums will become [1,2,3,3,5].
+
+Return the total cost to insert all elements from instructions into nums. Since the answer may be large, return it modulo 109 + 7
+
+ 
+
+Example 1:
+
+Input: instructions = [1,5,6,2]
+Output: 1
+Explanation: Begin with nums = [].
+Insert 1 with cost min(0, 0) = 0, now nums = [1].
+Insert 5 with cost min(1, 0) = 0, now nums = [1,5].
+Insert 6 with cost min(2, 0) = 0, now nums = [1,5,6].
+Insert 2 with cost min(1, 2) = 1, now nums = [1,2,5,6].
+The total cost is 0 + 0 + 0 + 1 = 1.
+
+class FenwickTree {
+private:
+    vector<int> arr;
+    int n;
+public:
+	// initialise empty tree
+    FenwickTree(int n) {
+        this->n = n;
+        arr = vector<int>(n, 0);
+    }
+	
+	// this is equivalent to pushing a number in the "nums" array
+    void add(int i) {
+        while (i < n) {
+            arr[i] += 1;
+            i += (i&(-i));
+        }
+    }
+	// returns the number of elements less than i
+    int lower(int i) {
+        i -= 1;
+        int sum = 0;
+        while (i != 0) {
+            sum += arr[i];
+            i -= (i&(-i));
+        }
+        return sum;
+    }
+};
+
+class Solution {
+public:
+    int createSortedArray(vector<int>& instructions) {      
+		// 10^5 is the given bound for instructions[i]
+        FenwickTree *tree = new FenwickTree(100001);
+
+        int n = instructions.size();
+        int M = 1000000007;
+        
+        int ans = 0;
+        
+        for (int i = 0; i < n; i++) {
+            int a = tree->lower(instructions[i]);
+            int b = i - tree->lower(instructions[i]+1);
+            
+            ans = (ans + min(a, b)) % M;
+            tree->add(instructions[i]);
+        }
+        
+        return ans;
+    }
+};
+
+##############################################################
+
+Q.7.Design a data structure to find the frequency of a given value in a given subarray.
+
+The frequency of a value in a subarray is the number of occurrences of that value in the subarray.
+
+Implement the RangeFreqQuery class:
+
+RangeFreqQuery(int[] arr) Constructs an instance of the class with the given 0-indexed integer array arr.
+int query(int left, int right, int value) Returns the frequency of value in the subarray arr[left...right].
+A subarray is a contiguous sequence of elements within an array. arr[left...right] denotes the subarray that contains the elements of nums between indices left and right (inclusive).
+
+class RangeFreqQuery {
+public:
+    int n;
+    // Every node is segment tree keeps a hashmap of count of array items for the given range.
+    unordered_map<int,int> *seg;
+    RangeFreqQuery(vector<int>& arr) {
+        n = arr.size(); 
+        seg = new unordered_map<int,int>[4*n]; // Because max nodes or indexes in segment tree can be 4*n [There is a proof for that].
+        build(0,0,n-1,arr);
+    }
+    
+    void build(int ind,int low,int high,vector<int>& arr){
+        if(low == high){
+            seg[ind][arr[low]]++;
+            return;
+        }
+
+        int mid = (low + high) / 2;
+        
+        // Recursively build for left and right subtree.
+        build(2*ind+1,low,mid,arr);
+        build(2*ind+2,mid+1,high,arr);
+        
+        unordered_map<int,int> map;
+        
+        for(auto it = seg[2*ind+1].begin();it!=seg[2*ind+1].end();it++){
+            map[it->first] += it->second;
+        }
+        
+        for(auto it = seg[2*ind+2].begin();it!=seg[2*ind+2].end();it++){
+            map[it->first] += it->second;
+        }
+        // Merging the right and left subtree solutions.
+        seg[ind] = map;
+    }
+    
+    
+    int queryH(int ind, int low, int high, int l, int r, int value){
+        // No overlap
+        // [l r] [low high] or [low high] [l r]
+        if(r < low || high < l){
+            return 0;
+        }
+
+        // Complete overlap
+        // [l low high r]
+
+        if(l <= low && high <= r){
+            return seg[ind][value];
+        }
+
+        // Partial overlap
+        int mid = (low + high) / 2;
+
+        // Querying the answer from left and right subtree.
+        int left = queryH(2*ind+1,low,mid,l,r,value);
+        int right = queryH(2*ind+2,mid+1,high,l,r,value);
+        
+        return left + right;;
+    }
+    
+    
+    int query(int left, int right, int value) {
+        return queryH(0,0,n-1,left,right,value);
+    }
+};
+
+#################################################################
+
+Q.8.You are given two 0-indexed arrays nums1 and nums2 of length n, both of which are permutations of [0, 1, ..., n - 1].
+
+A good triplet is a set of 3 distinct values which are present in increasing order by position both in nums1 and nums2. In other words, if we consider pos1v as the index of the value v in nums1 and pos2v as the index of the value v in nums2, then a good triplet will be a set (x, y, z) where 0 <= x, y, z <= n - 1, such that pos1x < pos1y < pos1z and pos2x < pos2y < pos2z.
+
+Return the total number of good triplets.
+
+ 
+
+Example 1:
+
+Input: nums1 = [2,0,1,3], nums2 = [0,1,2,3]
+Output: 1
+Explanation: 
+There are 4 triplets (x,y,z) such that pos1x < pos1y < pos1z. They are (2,0,1), (2,0,3), (2,1,3), and (0,1,3). 
+Out of those triplets, only the triplet (0,1,3) satisfies pos2x < pos2y < pos2z. Hence, there is only 1 good triplet.
+
+class Solution {
+public:
+    int N=1e5+10;
+    void update(int i,int val,vector<int>&bit)
+    {
+        while(i<N)
+        {
+            bit[i]+=val;
+            i+=(i&-i);
+        }
+    }
+    int find(int i,vector<int>&bit)
+    {
+        int sum=0;
+        while(i>0)
+        {
+            sum+=bit[i];
+            i-=(i&-i);
+        }
+        return sum;
+    }
+    int find_(int i,vector<int>&bit)
+    {
+        int sum=0;
+        while(i>0)
+        {
+            sum+=bit[i];
+            i-=(i&-i);
+        }
+        return sum;
+    }
+    long long goodTriplets(vector<int>& nums1, vector<int>& nums2) 
+    {
+        int n=nums1.size();
+        vector<int>bitl(N),bitr(N);
+        unordered_map<int,int>mp;
+        for(int i=0;i<n;i++)
+        {
+            mp[nums1[i]]=i+1;
+        }
+        vector<int>nums(n,0);
+        for(int i=0;i<n;i++)
+        {
+            nums[i]=mp[nums2[i]];
+        }
+        for(int i=0;i<n;i++)
+        {
+            update(nums[i],1,bitr);
+        }
+        long long ans=0;
+        for(int i=0;i<n;i++)
+        {
+            update(nums[i],-1,bitr);
+            int left=find(nums[i]-1,bitl);
+            int right=find_(N-1,bitr)-find_(nums[i],bitr);
+            ans+=(1ll*left*right);
+            update(nums[i],1,bitl);
+        }
+        return ans;
+    }
+};
+
+##################################################################
+
+Q.9.You are given a 0-indexed string s. You are also given a 0-indexed string queryCharacters of length k and a 0-indexed array of integer indices queryIndices of length k, both of which are used to describe k queries.
+
+The ith query updates the character in s at index queryIndices[i] to the character queryCharacters[i].
+
+Return an array lengths of length k where lengths[i] is the length of the longest substring of s consisting of only one repeating character after the ith query is performed.
+
+ 
+
+Example 1:
+
+Input: s = "babacc", queryCharacters = "bcb", queryIndices = [1,3,3]
+Output: [3,3,4]
+Explanation: 
+- 1st query updates s = "bbbacc". The longest substring consisting of one repeating character is "bbb" with length 3.
+- 2nd query updates s = "bbbccc". 
+  The longest substring consisting of one repeating character can be "bbb" or "ccc" with length 3.
+- 3rd query updates s = "bbbbcc". The longest substring consisting of one repeating character is "bbbb" with length 4.
+Thus, we return [3,3,4].
+
+Prerequisite: Construction of segment tree
+Contruction and updating characters in segment tree is easy ( standard problem ), but keeping the record of longest substring with one repeating is hard. To do this, we will need 5 parameter.
+let a segement be from index l to h, then the five parameters are:
+
+longest substring in segment l to h
+leftmost character of segment l to h
+rightmost character of segment l to h
+index of rightend of contiguous characters of segment l to h from left side
+index of leftend of contiguous characters of segment l to h from right side
+For example,
+for a string s = "abssefgth", we have segement froml = 2 toh = 8 ( ssefgth ). Then the five parameter are:
+
+longest substring in segment is 2
+leftmost character of segment is s
+rightmost character of segment is h
+index of rightend of contiguous characters of segment is 3 ( "ss" => 2 to 3)
+index of rightend of contiguous characters of segment is 8 ( "h" => 8 to 8)
+To store these values, following arrays are defined:
+
+nums to store the longest substring in segment
+lc to store leftmost character of segment
+rc to store rightmost character of segment l to h
+left to store index of rightend of contiguous characters of segment l to h from left side.
+right to store index of contiguous characters of segment l to h from right side
+Idea to find longest substring in segment:
+Assuming we have done calculation for both left and right child of a segment, calculation for parent is as follows:
+for example, parent = "smmh", then the leftchild = "sm", rightchild = "mh",
+the index of segment from l to h is in and left child segment is from l to m and right child segment is from m+1 to h , where m = (l+h)/2
+
+leftmost character of segment is the leftmost character of left child.
+rightmost character of segment is the rightmost character of right child.
+Atfirst, left[in] = left[left_child] and right[in] = right[left_child], where leftchild and rightchild are the index of segment of left and right child
+Now suppose, if rightmost char of left child == leftmost char of right child and also left[left_child] == m (end of segment of left child), then new left[in] = left[right_child]. similarly, if right[right_child] == m+1 (start of the segement of right child), the new value right[in] = right[left_child]
+Now, longest substring can be, from l to left[in], or from right[in] to h, or from right[left_child] to left[right_child] if rightmost char of left child == leftmost char of right child. Or it can be max of longest substring of leftchild and rightchild.
+Rest of the operations are given in the code below:
+
+class sgtree{
+public:
+    vector<int> nums,left,right;
+    vector<char> lc,rc; int n;
+    sgtree(string &s){
+        n = s.size();
+        nums = vector<int>(4*n+5,0);
+        left = vector<int>(4*n+5,-1);
+        right = vector<int>(4*n+5,-1);
+        lc = vector<char>(4*n+5,'*');
+        rc = vector<char>(4*n+5,'*');
+        build(0,s,0,n-1);
+    }
+    void build(int in, string &s,int l,int h){
+        if(l>h) return;
+        if(l==h){
+            lc[in] = rc[in] = s[l];
+            left[in] = l,right[in] = l; nums[in] = 1;
+            return;
+        }
+        int m = (l+h)/2;
+        build(2*in+1,s,l,m); build(2*in+2,s,m+1,h); 
+        merge(in,l,m,h);
+    }
+    void merge(int in,int l,int m,int h){
+        int lt = in*2+1, rt = in*2+2, max_ = 0;
+        lc[in] = lc[lt]; rc[in] = rc[rt];
+        left[in] = left[lt];
+        right[in] = right[rt]; 
+        if(rc[lt]==lc[rt]){ 
+            if(left[lt]==m) left[in] = left[rt];
+        }
+        if(lc[rt]==rc[lt]){ 
+            if(right[rt]==m+1) right[in] = right[lt]; 
+        }
+        if(rc[lt]==lc[rt]) max_ = left[rt]-right[lt]+1;
+        
+        max_ = max(max_,left[in]-l+1);
+        max_ = max(max_,h-right[in]+1);
+        nums[in] = max(max_,max(nums[lt],nums[rt]));
+    }
+    int update(int in,int l,int h,int j,char ch){
+        if(l>h) return 0;
+        if(l==h){
+            lc[in] = rc[in] = ch;
+            left[in] = l,right[in] = l; nums[in] = 1;
+            return 1;
+        }
+        int m = (l+h)/2;
+        if(j>=l && j<=m) update(2*in+1,l,m,j,ch);
+        else update(2*in+2,m+1,h,j,ch); 
+        merge(in,l,m,h);
+        return nums[in];
+    }
+};
+class Solution {
+public:
+    vector<int> longestRepeating(string s, string q, vector<int>& in) {
+        sgtree node(s);
+        vector<int> re(q.size(),0);
+        for(int i = 0; i<q.size();++i){
+            re[i] = node.update(0,0,s.size()-1,in[i],q[i]);
+        }
+        return re;
+    }
+};
+
+######################################################
+
+Q.10.Given an empty set of intervals, implement a data structure that can:
+
+Add an interval to the set of intervals.
+Count the number of integers that are present in at least one interval.
+Implement the CountIntervals class:
+
+CountIntervals() Initializes the object with an empty set of intervals.
+void add(int left, int right) Adds the interval [left, right] to the set of intervals.
+int count() Returns the number of integers that are present in at least one interval.
+Note that an interval [left, right] denotes all the integers x where left <= x <= right.
+
+ 
+
+Example 1:
+
+Input
+["CountIntervals", "add", "add", "count", "add", "count"]
+[[], [2, 3], [7, 10], [], [5, 8], []]
+Output
+[null, null, null, 6, null, 8]
+
+Explanation
+CountIntervals countIntervals = new CountIntervals(); // initialize the object with an empty set of intervals. 
+countIntervals.add(2, 3);  // add [2, 3] to the set of intervals.
+countIntervals.add(7, 10); // add [7, 10] to the set of intervals.
+countIntervals.count();    // return 6
+                           // the integers 2 and 3 are present in the interval [2, 3].
+                           // the integers 7, 8, 9, and 10 are present in the interval [7, 10].
+countIntervals.add(5, 8);  // add [5, 8] to the set of intervals.
+countIntervals.count();    // return 8
+                           // the integers 2 and 3 are present in the interval [2, 3].
+                           // the integers 5 and 6 are present in the interval [5, 8].
+                           // the integers 7 and 8 are present in the intervals [5, 8] and [7, 10].
+                           // the integers 9 and 10 are present in the interval [7, 10].
+
+struct Node {
+    int left_, right_, cnt_;
+    Node *lc_, *rc_;
+    
+    Node (int left, int right, int cnt = 0) {
+        left_ = left;
+        right_ = right;
+        cnt_ = cnt;
+        lc_ = NULL;
+        rc_ = NULL;
+    }
+    
+    int cnt() {
+        return cnt_;
+    }
+    
+    int size() {
+        return right_ - left_ + 1;
+    }
+    
+    int mid() {
+        return (left_ + right_) >> 1;
+    }
+    
+    Node *lc() {
+        if (lc_ == NULL) {
+            lc_ = new Node(left_, mid());
+        }
+        return lc_;
+    }
+    
+    Node *rc() {
+        if (rc_ == NULL) {
+            rc_ = new Node(mid() + 1, right_);
+        }
+        return rc_;
+    }
+    
+    void insert(int left, int right) {
+        if (size() == cnt()) {
+            return;
+        }
+        if (left <= left_ && right >= right_) {
+            cnt_ = size();
+            return;
+        }
+        if (left <= mid()) {
+            lc()->insert(left, min(mid(), right));
+        }
+        if (right > mid()) {
+            rc()->insert(max(mid() + 1, left), right);
+        }
+        cnt_ = 0;
+        if (lc_ != NULL) {
+            cnt_ += lc_->cnt();
+        }
+        if (rc_ != NULL) {
+            cnt_ += rc_->cnt();
+        }
+    }
+};
+
+class CountIntervals {
+private:
+    Node *root;
+    
+public:
+    CountIntervals() {
+        root = new Node(1, 1E9);
+    }
+    
+    void add(int left, int right) {
+        root->insert(left, right);
+    }
+    
+    int count() {
+        return root->cnt();
+    }
+};
+
+###################################################################
+
+Q.11.A concert hall has n rows numbered from 0 to n - 1, each with m seats, numbered from 0 to m - 1. You need to design a ticketing system that can allocate seats in the following cases:
+
+If a group of k spectators can sit together in a row.
+If every member of a group of k spectators can get a seat. They may or may not sit together.
+Note that the spectators are very picky. Hence:
+
+They will book seats only if each member of their group can get a seat with row number less than or equal to maxRow. maxRow can vary from group to group.
+In case there are multiple rows to choose from, the row with the smallest number is chosen. If there are multiple seats to choose in the same row, the seat with the smallest number is chosen.
+Implement the BookMyShow class:
+
+BookMyShow(int n, int m) Initializes the object with n as number of rows and m as number of seats per row.
+int[] gather(int k, int maxRow) Returns an array of length 2 denoting the row and seat number (respectively) of the first seat being allocated to the k members of the group, who must sit together. In other words, it returns the smallest possible r and c such that all [c, c + k - 1] seats are valid and empty in row r, and r <= maxRow. Returns [] in case it is not possible to allocate seats to the group.
+boolean scatter(int k, int maxRow) Returns true if all k members of the group can be allocated seats in rows 0 to maxRow, who may or may not sit together. If the seats can be allocated, it allocates k seats to the group with the smallest row numbers, and the smallest possible seat numbers in each row. Otherwise, returns false.
+ 
+
+Example 1:
+
+Input
+["BookMyShow", "gather", "gather", "scatter", "scatter"]
+[[2, 5], [4, 0], [2, 0], [5, 1], [5, 1]]
+Output
+[null, [0, 0], [], true, false]
+
+Explanation
+BookMyShow bms = new BookMyShow(2, 5); // There are 2 rows with 5 seats each 
+bms.gather(4, 0); // return [0, 0]
+                  // The group books seats [0, 3] of row 0. 
+bms.gather(2, 0); // return []
+                  // There is only 1 seat left in row 0,
+                  // so it is not possible to book 2 consecutive seats. 
+bms.scatter(5, 1); // return True
+                   // The group books seat 4 of row 0 and seats [0, 3] of row 1. 
+bms.scatter(5, 1); // return False
+                   // There is only one seat left in the hall.
+
+Gather: query & update minimum available row
+Scatter: query & update range of available rows
+
+Gather() should find and update the maximum remaining seats of rows
+Scatter() should find and update total remaining seats of rows
+To do these efficiently, segment tree can be used
+Setup a segment tree that tracks max and sum of remaining seats
+The query and update might be done simultaneously...
+but I did it separately because I was in hurry.
+
+class BookMyShow {
+    int n;
+    int m;
+    vector<array<long long, 2>> stree; // segment tree that tracks (max, sum) of each segment
+public:
+    void build(int i, int p, int q) {
+        if (p == q) {
+            stree[i] = {m, m};
+            return;
+        }
+        int r = (p + q) / 2;
+        stree[i] = {m, (long long)(q-p+1)*m};
+        build(2*i+1, p, r);
+        build(2*i+2, r+1, q);
+    }
+
+    vector<int> query_max(int i, int p, int q, int k, int maxRow) {
+        if (p > maxRow)
+            return {};
+        if (stree[i][0] < k)
+            return {};
+        if (p == q)
+            return {p, (int)(m - stree[i][0])};
+        int r = (p + q) / 2;
+        vector<int> ret = query_max(2*i+1, p, r, k, maxRow);
+        if (ret.size())
+            return ret;
+        return query_max(2*i+2, r+1, q, k, maxRow);
+    }
+
+    void update_max(int i, int p, int q, int row, int k) {
+        if (p > row || q < row)
+            return;
+        if (p == q) {
+            stree[i][0] -= k;
+            stree[i][1] -= k;
+            // cout << p << " " << stree[i][0] << endl;
+            return;
+        }
+        int r = (p + q) / 2;
+        stree[i][1] -= k;
+        update_max(2*i+1, p, r, row, k);
+        update_max(2*i+2, r+1, q, row, k);
+        stree[i][0] = max(stree[2*i+1][0], stree[2*i+2][0]);
+    }
+
+    long long query_sum(int i, int p, int q, int maxRow) {
+        if (p > maxRow)
+            return 0;
+        if (q <= maxRow)
+            return stree[i][1];
+        int r = (p + q) / 2;
+        return query_sum(2*i+1, p, r, maxRow) + query_sum(2*i+2, r+1, q, maxRow);
+    }
+
+    void update_sum(int i, int p, int q, int k, int maxRow) {
+        if (p > maxRow)
+            return;
+        if (p == q) {
+            stree[i][0] -= k;
+            stree[i][1] -= k;
+            // cout << p << " " << stree[i][0] << endl;
+            return;
+        }
+        int r = (p + q) / 2;
+        stree[i][1] -= k;
+        if (r+1 > maxRow || stree[2*i+1][1] >= k) {
+            update_sum(2*i+1, p, r, k, maxRow);
+        } else {
+            k -= stree[2*i+1][1];
+            update_sum(2*i+1, p, r, stree[2*i+1][1], maxRow);
+            // Be aware: stree[2*i+1][1] updates while updating the left tree
+            update_sum(2*i+2, r+1, q, k, maxRow);
+        }
+        stree[i][0] = max(stree[2*i+1][0], stree[2*i+2][0]);
+    }
+
+
+    BookMyShow(int n_in, int m_in) {
+        n = n_in;
+        m = m_in;
+
+        int sz = 1;
+        while (sz < n*2)
+            sz <<= 1;
+        stree.resize(sz);
+
+        build(0, 0, n-1);
+    }
+
+    vector<int> gather(int k, int maxRow) {
+        // cout << "gather " << k << " " << maxRow << endl;
+        vector<int> ret = query_max(0, 0, n-1, k, maxRow);
+        if (ret.size())
+            update_max(0, 0, n-1, ret[0], k);
+        return ret;
+    }
+
+    bool scatter(int k, int maxRow) {
+        // cout << "scatter " << k << " " << maxRow << endl;
+        long long cnt = query_sum(0, 0, n-1, maxRow);
+        bool ret = cnt >= k;
+        if (ret)
+            update_sum(0, 0, n-1, k, maxRow);
+        return ret;
+    }
+};
+
+###############################################################
+
+Q.12.Given a binary tree root, return the maximum sum of all keys of any sub-tree which is also a Binary Search Tree (BST).
+
+Assume a BST is defined as follows:
+
+The left subtree of a node contains only nodes with keys less than the node's key.
+The right subtree of a node contains only nodes with keys greater than the node's key.
+Both the left and right subtrees must also be binary search trees.
+
+/**
+ * Definition for a binary tree node.
+ * struct TreeNode {
+ *     int val;
+ *     TreeNode *left;
+ *     TreeNode *right;
+ *     TreeNode() : val(0), left(nullptr), right(nullptr) {}
+ *     TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+ *     TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+ * };
+ */
+class Solution {
+public:
+    int finalans = INT_MIN;
+    struct nodeinfo
+    {
+        int min, max, sum;
+        bool bst;
+    };
+    struct nodeinfo recur(TreeNode *root)
+    {
+        if(root->left == nullptr && root->right == nullptr)
+        {
+            struct nodeinfo leaf;
+            leaf.min = leaf.max = leaf.sum = root->val;
+            leaf.bst = true;
+            if(root->val >= 0)
+                finalans = max(finalans, root->val);
+            return leaf;
+        }
+        struct nodeinfo leftst;
+        if(root->left)
+        {
+            leftst = recur(root->left);
+        }
+        else
+        {
+            leftst.min = INT_MAX;
+            leftst.max = INT_MIN;
+            leftst.sum = 0;
+            leftst.bst = true;
+        }
+        struct nodeinfo rightst;
+        if(root->right)
+        {
+            rightst = recur(root->right);
+        }
+        else
+        {
+            rightst.min = INT_MAX;
+            rightst.max = INT_MIN;
+            rightst.sum = 0;
+            rightst.bst = true;
+        }
+        bool ans1 = leftst.bst && rightst.bst;
+        bool ans2;
+        if((leftst.max < root->val) && (rightst.min > root->val))
+            ans2 = true;
+        else 
+            ans2 = false;
+        if(ans1 && ans2)
+        {
+            finalans = max(finalans, leftst.sum+ rightst.sum+ root->val);
+        }
+        struct nodeinfo node;
+        node.min = min(root->val, min(leftst.min, rightst.min));
+        node.max = max(root->val, max(leftst.max, rightst.max));
+        node.sum = leftst.sum + rightst.sum + root->val;
+        node.bst = ans1 && ans2;
+        return node;
+        
+    }
+    int maxSumBST(TreeNode* root) {
+        struct nodeinfo tree;
+        tree = recur(root);
+        if(finalans <= 0)
+            return 0;
+        return finalans;
+    }
+};
+
+##############################################################
+
+Q.13.Given the root of a binary tree, determine if it is a valid binary search tree (BST).
+
+A valid BST is defined as follows:
+
+The left subtree of a node contains only nodes with keys less than the node's key.
+The right subtree of a node contains only nodes with keys greater than the node's key.
+Both the left and right subtrees must also be binary search trees.
+
+/**
+ * Definition for a binary tree node.
+ * struct TreeNode {
+ *     int val;
+ *     TreeNode *left;
+ *     TreeNode *right;
+ *     TreeNode() : val(0), left(nullptr), right(nullptr) {}
+ *     TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+ *     TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+ * };
+ */
+class Solution {
+public:
+    bool valid(TreeNode *root,long long int l, long long int r)
+    {
+        if(root == nullptr)
+            return true;
+        bool boolleft, boolnode, boolright;
+        if(l<= root->val && root->val <=r)
+            boolnode = true;
+        else
+            boolnode = false;
+        boolleft = valid(root->left, l, (long long int)root->val-1);
+        boolright = valid(root->right, (long long int)root->val+1, r);
+        return boolnode && boolleft && boolright;
+    }
+    bool isValidBST(TreeNode* root) {
+        return valid(root, INT_MIN, INT_MAX);
+    }
+};
+
+################################################################
+
+Q.14.You are given the root of a binary search tree (BST), where the values of exactly two nodes of the
+ tree were swapped by mistake. Recover the tree without changing its structure.
+
+Example 1:
+
+
+Input: root = [1,3,null,null,2]
+Output: [3,1,null,null,2]
+Explanation: 3 cannot be a left child of 1 because 3 > 1. Swapping 1 and 3 makes the BST valid.
+
+class Solution {
+public:
+    TreeNode* tmp1=NULL, *tmp2=NULL;
+    TreeNode* prev=NULL;
+    void func(TreeNode* node){
+        if(!node) return;
+        func(node->left);
+        if(!prev) prev = node;
+        else if(node->val< prev->val){
+            if(!tmp1){
+              tmp1 = prev;
+              prev=node;
+              tmp2 = node;
+            }
+            else{
+                tmp2 = node;
+                prev=node ;
+            }
+        }
+    else prev =node;
+    func(node->right);
+    }
+    
+    void recoverTree(TreeNode* root) {
+        func(root);
+        swap(tmp1->val, tmp2->val);
+    }
+};
+
+####################################################################
+
+Q.15.Given the head of a singly linked list where elements are sorted in ascending order, convert it to a height balanced BST.
+For this problem, a height-balanced binary tree is defined as a binary tree in which the 
+depth of the two subtrees of every node never differ by more than 1
+
+class Solution {
+public:
+    TreeNode* BBST(ListNode *head, int s, int e)
+    {
+        int mid = (s+e)/2, ind = 0;
+        ListNode *temp = head;
+        while(ind < mid)
+        {
+            temp = temp->next;
+            ind++;
+        }
+        TreeNode *root = new TreeNode;
+        root->val = temp->val;
+        root->left = root->right = nullptr;
+        if(s == e)
+            return root;
+        if(s < mid)
+            root->left = BBST(head, s, mid-1);
+        if(mid < e)
+            root->right = BBST(head, mid+1, e);
+        return root;
+    }
+    TreeNode* sortedListToBST(ListNode* head) {
+        ListNode *temp = head;
+        if(temp == nullptr)
+            return nullptr;
+        int length = 0;
+        while(temp)
+        {
+            length++;
+            temp = temp->next;
+        }
+        return BBST(head, 0, length-1);
+    }
+};
+
+####################################################################
+
+Q.16.Given the root node of a binary search tree and two integers low and high, 
+return the sum of values of all nodes with a value in the inclusive range [low, high].
+
+class Solution {
+public:
+    int rangeSumBST(TreeNode* root, int low, int high) {
+        if(root == nullptr)
+            return 0;
+        if(low <= root->val && root->val <= high)
+        {
+            return root->val + rangeSumBST(root->left, low, root->val-1) + rangeSumBST(root->right, root->val+1, high);
+        }
+        if(root->val < low)
+        {
+            return rangeSumBST(root->right, low, high);
+        }
+        if(high < root->val)
+        {
+            return rangeSumBST(root->left, low, high);
+        }
+        return root->val;
+    }
+};
+
+########################################################################
+
+Q.17.In-place merging of 2 BST.s
+
+#include <bits/stdc++.h>
+using namespace std;
+ 
+// Structure of a BST Node
+class Node {
+public:
+    int val;
+    Node* left;
+    Node* right;
+};
+ 
+/* Utility function to create a new Binary Tree Node */
+Node* newNode(int data)
+{
+    Node* temp = new Node;
+    temp->val = data;
+    temp->left = nullptr;
+    temp->right = nullptr;
+    return temp;
+}
+ 
+vector<int> mergeTwoBST(Node* root1, Node* root2)
+{
+    vector<int> res;
+    stack<Node*> s1, s2;
+    while (root1 || root2 || !s1.empty() || !s2.empty()) {
+        while (root1) {
+            s1.push(root1);
+            root1 = root1->left;
+        }
+        while (root2) {
+            s2.push(root2);
+            root2 = root2->left;
+        }
+        // Step 3 Case 1:-
+        if (s2.empty() || (!s1.empty() && s1.top()->val <= s2.top()->val)) {
+            root1 = s1.top();
+            s1.pop();
+            res.push_back(root1->val);
+            root1 = root1->right;
+        }
+        // Step 3 case 2 :-
+        else {
+            root2 = s2.top();
+            s2.pop();
+            res.push_back(root2->val);
+            root2 = root2->right;
+        }
+    }
+    return res;
+}
+ 
+/* Driver program to test above functions */
+int main()
+{
+    Node *root1 = nullptr, *root2 = nullptr;
+ 
+    /* Let us create the following tree as first tree
+       3
+      / \
+      1 5
+    */
+    root1 = newNode(3);
+    root1->left = newNode(1);
+    root1->right = newNode(5);
+ 
+    /* Let us create the following tree as second tree
+       4
+      / \
+      2 6
+    */
+    root2 = newNode(4);
+    root2->left = newNode(2);
+    root2->right = newNode(6);
+ 
+    // Print sorted Nodes of both trees
+    vector<int> ans = mergeTwoBST(root1, root2);
+    for (auto it : ans)
+        cout << it << " ";
+    return 0;
+}
+
+################################################################
+
+Q.18. Intersection of 2 BST's
+
+// Function two print common elements in given two trees
+void printCommon(Node *root1, Node *root2)
+{
+    // Create two stacks for two inorder traversals
+    stack<Node *> stack1, s1, s2;
+  
+    while (1)
+    {
+        // push the Nodes of first tree in stack s1
+        if (root1)
+        {
+            s1.push(root1);
+            root1 = root1->left;
+        }
+  
+        // push the Nodes of second tree in stack s2
+        else if (root2)
+        {
+            s2.push(root2);
+            root2 = root2->left;
+        }
+  
+        // Both root1 and root2 are NULL here
+        else if (!s1.empty() && !s2.empty())
+        {
+            root1 = s1.top();
+            root2 = s2.top();
+  
+            // If current keys in two trees are same
+            if (root1->key == root2->key)
+            {
+                cout << root1->key << " ";
+                s1.pop();
+                s2.pop();
+  
+                // move to the inorder successor
+                root1 = root1->right;
+                root2 = root2->right;
+            }
+  
+            else if (root1->key < root2->key)
+            {
+                // If Node of first tree is smaller, than that of
+                // second tree, then its obvious that the inorder
+                // successors of current Node can have same value
+                // as that of the second tree Node. Thus, we pop
+                // from s2
+                s1.pop();
+                root1 = root1->right;
+  
+                // root2 is set to NULL, because we need
+                // new Nodes of tree 1
+                root2 = NULL;
+            }
+            else if (root1->key > root2->key)
+            {
+                s2.pop();
+                root2 = root2->right;
+                root1 = NULL;
+            }
+        }
+  
+        // Both roots and both stacks are empty
+        else  break;
+    }
+}
+
+################################################################3
+
+Q.19.Pair with given sum in BBST
+
+/ Returns true if a pair with target
+// sum exists in BST, otherwise false
+bool isPairPresent(node* root, int target)
+{
+    // Create two stacks. s1 is used for
+    // normal inorder traversal and s2 is
+    // used for reverse inorder traversal
+    Stack* s1 = createStack(MAX_SIZE);
+    Stack* s2 = createStack(MAX_SIZE);
+ 
+    // Note the sizes of stacks is MAX_SIZE,
+    // we can find the tree size and fix stack size
+    // as O(Logn) for balanced trees like AVL and Red Black
+    // tree. We have used MAX_SIZE to keep the code simple
+ 
+    // done1, val1 and curr1 are used for
+    // normal inorder traversal using s1
+    // done2, val2 and curr2 are used for
+    // reverse inorder traversal using s2
+    bool done1 = false, done2 = false;
+    int val1 = 0, val2 = 0;
+    node *curr1 = root, *curr2 = root;
+ 
+    // The loop will break when we either find a pair or one of the two
+    // traversals is complete
+    while (1) {
+        // Find next node in normal Inorder
+        // traversal. See following post
+        // https:// www.geeksforgeeks.org/inorder-tree-traversal-without-recursion/
+        while (done1 == false) {
+            if (curr1 != NULL) {
+                push(s1, curr1);
+                curr1 = curr1->left;
+            }
+            else {
+                if (isEmpty(s1))
+                    done1 = 1;
+                else {
+                    curr1 = pop(s1);
+                    val1 = curr1->val;
+                    curr1 = curr1->right;
+                    done1 = 1;
+                }
+            }
+        }
+ 
+        // Find next node in REVERSE Inorder traversal. The only
+        // difference between above and below loop is, in below loop
+        // right subtree is traversed before left subtree
+        while (done2 == false) {
+            if (curr2 != NULL) {
+                push(s2, curr2);
+                curr2 = curr2->right;
+            }
+            else {
+                if (isEmpty(s2))
+                    done2 = 1;
+                else {
+                    curr2 = pop(s2);
+                    val2 = curr2->val;
+                    curr2 = curr2->left;
+                    done2 = 1;
+                }
+            }
+        }
+ 
+        // If we find a pair, then print the pair and return. The first
+        // condition makes sure that two same values are not added
+        if ((val1 != val2) && (val1 + val2) == target) {
+            cout << "Pair Found: " << val1 << "+ " << val2 << " = " << target << endl;
+            return true;
+        }
+ 
+        // If sum of current values is smaller,
+        // then move to next node in
+        // normal inorder traversal
+        else if ((val1 + val2) < target)
+            done1 = false;
+ 
+        // If sum of current values is greater,
+        // then move to next node in
+        // reverse inorder traversal
+        else if ((val1 + val2) > target)
+            done2 = false;
+ 
+        // If any of the inorder traversals is
+        // over, then there is no pair
+        // so return false
+        if (val1 >= val2)
+            return false;
+    }
+}
+
+###########################################################
+
+Q.20.postorder to BST
+
+/* A O(n) program for construction of
+BST from postorder traversal */
+#include <bits/stdc++.h>
+using namespace std;
+ 
+/* A binary tree node has data,
+pointer to left child and a
+pointer to right child */
+struct node
+{
+    int data;
+    struct node *left, *right;
+};
+ 
+// A utility function to create a node
+struct node* newNode (int data)
+{
+    struct node* temp =
+(struct node *) malloc(sizeof(struct node));
+ 
+    temp->data = data;
+    temp->left = temp->right = NULL;
+ 
+    return temp;
+}
+ 
+// A recursive function to construct
+// BST from post[]. postIndex is used
+// to keep track of index in post[].
+struct node* constructTreeUtil(int post[], int* postIndex,
+                               int key, int min, int max,
+                               int size)
+{
+    // Base case
+    if (*postIndex < 0)
+        return NULL;
+ 
+    struct node* root = NULL;
+ 
+    // If current element of post[] is
+    // in range, then only it is part
+    // of current subtree
+    if (key > min && key < max)
+    {
+        // Allocate memory for root of this
+        // subtree and decrement *postIndex
+        root = newNode(key);
+        *postIndex = *postIndex - 1;
+ 
+        if (*postIndex >= 0)
+        {
+ 
+        // All nodes which are in range {key..max}
+        // will go in right subtree, and first such
+        // node will be root of right subtree.
+        root->right = constructTreeUtil(post, postIndex,
+                                        post[*postIndex],
+                                        key, max, size );
+ 
+        // Construct the subtree under root
+        // All nodes which are in range {min .. key}
+        // will go in left subtree, and first such
+        // node will be root of left subtree.
+        root->left = constructTreeUtil(post, postIndex,
+                                       post[*postIndex],
+                                       min, key, size );
+        }
+    }
+    return root;
+}
+ 
+// The main function to construct BST
+// from given postorder traversal.
+// This function mainly uses constructTreeUtil()
+struct node *constructTree (int post[],
+                            int size)
+{
+    int postIndex = size-1;
+    return constructTreeUtil(post, &postIndex,
+                             post[postIndex],
+                             INT_MIN, INT_MAX, size);
+}
+
+################################################################3
+
+Q.21.Level order to BST
+
+// node of a BST
+struct Node
+{
+    int data;
+    Node *left, *right;
+};
+ 
+ 
+// function to get a new node
+Node* getNode(int data)
+{
+    // Allocate memory
+    Node *newNode =
+        (Node*)malloc(sizeof(Node));
+     
+    // put in the data   
+    newNode->data = data;
+    newNode->left = newNode->right = NULL;   
+    return newNode;
+}
+ 
+ 
+// function to construct a BST from
+// its level order traversal
+Node *LevelOrder(Node *root , int data)
+{
+     if(root==NULL){   
+        root = getNode(data);
+        return root;
+     }
+     if(data <= root->data)
+     root->left = LevelOrder(root->left, data);
+     else
+     root->right = LevelOrder(root->right, data);
+     return root;    
+}
+ 
+Node* constructBst(int arr[], int n)
+{
+    if(n==0)return NULL;
+    Node *root =NULL;
+ 
+    for(int i=0;i<n;i++)
+    root = LevelOrder(root , arr[i]);
+     
+    return root;
+}
+
+####################################################3
+
+Q.22. Lazy propagation in ST
+
+// Program to show segment tree to demonstrate lazy
+// propagation
+#include <stdio.h>
+#include <math.h>
+#define MAX 1000
+ 
+// Ideally, we should not use global variables and large
+// constant-sized arrays, we have done it here for simplicity.
+int tree[MAX] = {0};  // To store segment tree
+int lazy[MAX] = {0};  // To store pending updates
+ 
+/*  si -> index of current node in segment tree
+    ss and se -> Starting and ending indexes of elements for
+                 which current nodes stores sum.
+    us and ue -> starting and ending indexes of update query
+    diff -> which we need to add in the range us to ue */
+void updateRangeUtil(int si, int ss, int se, int us,
+                     int ue, int diff)
+{
+    // If lazy value is non-zero for current node of segment
+    // tree, then there are some pending updates. So we need
+    // to make sure that the pending updates are done before
+    // making new updates. Because this value may be used by
+    // parent after recursive calls (See last line of this
+    // function)
+    if (lazy[si] != 0)
+    {
+        // Make pending updates using value stored in lazy
+        // nodes
+        tree[si] += (se-ss+1)*lazy[si];
+ 
+        // checking if it is not leaf node because if
+        // it is leaf node then we cannot go further
+        if (ss != se)
+        {
+            // We can postpone updating children we don't
+            // need their new values now.
+            // Since we are not yet updating children of si,
+            // we need to set lazy flags for the children
+            lazy[si*2 + 1]   += lazy[si];
+            lazy[si*2 + 2]   += lazy[si];
+        }
+ 
+        // Set the lazy value for current node as 0 as it
+        // has been updated
+        lazy[si] = 0;
+    }
+ 
+    // out of range
+    if (ss>se || ss>ue || se<us)
+        return ;
+ 
+    // Current segment is fully in range
+    if (ss>=us && se<=ue)
+    {
+        // Add the difference to current node
+        tree[si] += (se-ss+1)*diff;
+ 
+        // same logic for checking leaf node or not
+        if (ss != se)
+        {
+            // This is where we store values in lazy nodes,
+            // rather than updating the segment tree itself
+            // Since we don't need these updated values now
+            // we postpone updates by storing values in lazy[]
+            lazy[si*2 + 1]   += diff;
+            lazy[si*2 + 2]   += diff;
+        }
+        return;
+    }
+ 
+    // If not completely in rang, but overlaps, recur for
+    // children,
+    int mid = (ss+se)/2;
+    updateRangeUtil(si*2+1, ss, mid, us, ue, diff);
+    updateRangeUtil(si*2+2, mid+1, se, us, ue, diff);
+ 
+    // And use the result of children calls to update this
+    // node
+    tree[si] = tree[si*2+1] + tree[si*2+2];
+}
+ 
+// Function to update a range of values in segment
+// tree
+/*  us and eu -> starting and ending indexes of update query
+    ue  -> ending index of update query
+    diff -> which we need to add in the range us to ue */
+void updateRange(int n, int us, int ue, int diff)
+{
+   updateRangeUtil(0, 0, n-1, us, ue, diff);
+}
+ 
+ 
+/*  A recursive function to get the sum of values in given
+    range of the array. The following are parameters for
+    this function.
+    si --> Index of current node in the segment tree.
+           Initially 0 is passed as root is always at'
+           index 0
+    ss & se  --> Starting and ending indexes of the
+                 segment represented by current node,
+                 i.e., tree[si]
+    qs & qe  --> Starting and ending indexes of query
+                 range */
+int getSumUtil(int ss, int se, int qs, int qe, int si)
+{
+    // If lazy flag is set for current node of segment tree,
+    // then there are some pending updates. So we need to
+    // make sure that the pending updates are done before
+    // processing the sub sum query
+    if (lazy[si] != 0)
+    {
+        // Make pending updates to this node. Note that this
+        // node represents sum of elements in arr[ss..se] and
+        // all these elements must be increased by lazy[si]
+        tree[si] += (se-ss+1)*lazy[si];
+ 
+        // checking if it is not leaf node because if
+        // it is leaf node then we cannot go further
+        if (ss != se)
+        {
+            // Since we are not yet updating children os si,
+            // we need to set lazy values for the children
+            lazy[si*2+1] += lazy[si];
+            lazy[si*2+2] += lazy[si];
+        }
+ 
+        // unset the lazy value for current node as it has
+        // been updated
+        lazy[si] = 0;
+    }
+ 
+    // Out of range
+    if (ss>se || ss>qe || se<qs)
+        return 0;
+ 
+    // At this point we are sure that pending lazy updates
+    // are done for current node. So we can return value
+    // (same as it was for query in our previous post)
+ 
+    // If this segment lies in range
+    if (ss>=qs && se<=qe)
+        return tree[si];
+ 
+    // If a part of this segment overlaps with the given
+    // range
+    int mid = (ss + se)/2;
+    return getSumUtil(ss, mid, qs, qe, 2*si+1) +
+           getSumUtil(mid+1, se, qs, qe, 2*si+2);
+}
+ 
+// Return sum of elements in range from index qs (query
+// start) to qe (query end).  It mainly uses getSumUtil()
+int getSum(int n, int qs, int qe)
+{
+    // Check for erroneous input values
+    if (qs < 0 || qe > n-1 || qs > qe)
+    {
+        printf("Invalid Input");
+        return -1;
+    }
+ 
+    return getSumUtil(0, n-1, qs, qe, 0);
+}
+ 
+// A recursive function that constructs Segment Tree for
+//  array[ss..se]. si is index of current node in segment
+// tree st.
+void constructSTUtil(int arr[], int ss, int se, int si)
+{
+    // out of range as ss can never be greater than se
+    if (ss > se)
+        return ;
+ 
+    // If there is one element in array, store it in
+    // current node of segment tree and return
+    if (ss == se)
+    {
+        tree[si] = arr[ss];
+        return;
+    }
+ 
+    // If there are more than one elements, then recur
+    // for left and right subtrees and store the sum
+    // of values in this node
+    int mid = (ss + se)/2;
+    constructSTUtil(arr, ss, mid, si*2+1);
+    constructSTUtil(arr, mid+1, se, si*2+2);
+ 
+    tree[si] = tree[si*2 + 1] + tree[si*2 + 2];
+}
+ 
+/* Function to construct segment tree from given array.
+   This function allocates memory for segment tree and
+   calls constructSTUtil() to fill the allocated memory */
+void constructST(int arr[], int n)
+{
+    // Fill the allocated memory st
+    constructSTUtil(arr, 0, n-1, 0);
+}
+
+################################################################
+
+Q.23. Maximum frequency in subarray of non decreasing array
+
+// A utility function to get the middle index
+// from corner indexes.
+int getMid(int s, int e) { return s + (e - s) / 2; }
+ 
+/*  A recursive function to get the maximum value in
+    a given range  of array indexes. The following
+    are parameters for this function.
+  
+    st    --> Pointer to segment tree
+    index --> Index of current node in the segment
+              tree. Initially 0 is passed as root is
+              always at index 0
+    ss & se  --> Starting and ending indexes of the
+                 segment represented by current node,
+                  i.e., st[index]
+    qs & qe  --> Starting and ending indexes of query
+                 range */
+int RMQUtil(int* st, int ss, int se, int qs, int qe,
+                                          int index)
+{
+    // If segment of this node is a part of given range,
+    //  then return the min of the segment
+    if (qs <= ss && qe >= se)
+        return st[index];
+ 
+    // If segment of this node is outside the
+    // given range
+    if (se < qs || ss > qe)
+        return 0;
+ 
+    // If a part of this segment overlaps
+    // with the given range
+    int mid = getMid(ss, se);
+    return max(RMQUtil(st, ss, mid, qs, qe, 2 * index + 1),
+               RMQUtil(st, mid + 1, se, qs, qe, 2 * index + 2));
+}
+ 
+// Return minimum of elements in range from
+// index qs (query start) to
+// qe (query end).  It mainly uses RMQUtil()
+int RMQ(int* st, int n, int qs, int qe)
+{
+    // Check for erroneous input values
+    if (qs < 0 || qe > n - 1 || qs > qe) {
+        printf("Invalid Input");
+        return -1;
+    }
+ 
+    return RMQUtil(st, 0, n - 1, qs, qe, 0);
+}
+ 
+// A recursive function that constructs Segment Tree
+// for array[ss..se]. si is index of current node in
+// segment tree st
+int constructSTUtil(int arr[], int ss, int se, int* st,
+                                               int si)
+{
+    // If there is one element in array, store it in
+    //  current node of segment tree and return
+    if (ss == se) {
+        st[si] = arr[ss];
+        return arr[ss];
+    }
+ 
+    // If there are more than one elements, then
+    // recur for left and right subtrees and store
+    // the minimum of two values in this node
+    int mid = getMid(ss, se);
+    st[si] = max(constructSTUtil(arr, ss, mid, st, si * 2 + 1),
+                 constructSTUtil(arr, mid + 1, se, st, si * 2 + 2));
+    return st[si];
+}
+ 
+/* Function to construct segment tree from given
+   array. This function allocates memory for segment
+   tree and calls constructSTUtil() to fill the
+   allocated memory */
+int* constructST(int arr[], int n)
+{
+    // Allocate memory for segment tree
+ 
+    // Height of segment tree
+    int x = (int)(ceil(log2(n)));
+ 
+    // Maximum size of segment tree
+    int max_size = 2 * (int)pow(2, x) - 1;
+ 
+    int* st = new int[max_size];
+ 
+    // Fill the allocated memory st
+    constructSTUtil(arr, 0, n - 1, st, 0);
+ 
+    // Return the constructed segment tree
+    return st;
+}
+ 
+int maximumOccurrence(int arr[], int n, int qs, int qe)
+{
+    // Declaring a frequency array
+    int freq_arr[n + 1];
+ 
+    // Counting frequencies of all array elements.
+    unordered_map<int, int> cnt;
+    for (int i = 0; i < n; i++)
+        cnt[arr[i]]++;
+ 
+    // Creating frequency array by replacing the
+    // number in array to the number of times it
+    // has appeared in the array
+    for (int i = 0; i < n; i++)
+        freq_arr[i] = cnt[arr[i]];
+ 
+    // Build segment tree from this frequency array
+    int* st = constructST(freq_arr, n);
+ 
+    int maxOcc; // to store the answer
+ 
+    // Case 1: numbers are same at the starting
+    // and ending index of the query
+    if (arr[qs] == arr[qe])
+        maxOcc = (qe - qs + 1);
+ 
+    // Case 2: numbers are different
+    else {
+        int leftmost_same = 0, righmost_same = 0;
+ 
+        // Partial Overlap Case of a number with some
+        // occurrences lying inside the leftmost
+        //  part of the range and some just before the
+        // range starts
+        while (qs > 0 && qs <= qe && arr[qs] == arr[qs - 1]) {
+            qs++;
+            leftmost_same++;
+        }
+ 
+        // Partial Overlap Case of a number with some
+        // occurrences lying inside the rightmost part of
+        // the range and some just after the range ends
+        while (qe >= qs && qe < n - 1 && arr[qe] == arr[qe + 1]) {
+            qe--;
+            righmost_same++;
+        }
+        // Taking maximum of all three
+        maxOcc = max({leftmost_same, righmost_same,
+                                RMQ(st, n, qs, qe)});
+    }
+    return maxOcc;
+}
+
+##################################################################
+
+Q.24. Unique BST's using catalan number
+
+Approach: The number of binary search trees that will be formed with N keys can be calculated by simply evaluating the corresponding number in Catalan Number series. 
+First few Catalan numbers for n = 0, 1, 2, 3, … are 1, 1, 2, 5, 14, 42, 132, 429, 1430, 4862, …
+Catalan numbers satisfy the following recursive formula: 
+
+C0 = 1; Cn+1 = sigma 0 to n (Ci * Cn-i)
+
+// Function to return the count
+// of unique BSTs with n keys
+int uniqueBSTs(int n)
+{
+    int n1, n2, sum = 0;
+ 
+    // Base cases
+    if (n == 1 || n == 0)
+        return 1;
+ 
+    // Find the nth Catalan number
+    for (int i = 1; i <= n; i++) {
+ 
+        // Recursive calls
+        n1 = uniqueBSTs(i - 1);
+        n2 = uniqueBSTs(n - i);
+        sum += n1 * n2;
+    }
+ 
+    // Return the nth Catalan number
+    return sum;
+}
+
+#######################################################################
+
+Q.25. BST to BBST
+
+struct Node
+{
+    int data;
+    Node* left,  *right;
+};
+ 
+/* This function traverse the skewed binary tree and
+   stores its nodes pointers in vector nodes[] */
+void storeBSTNodes(Node* root, vector<Node*> &nodes)
+{
+    // Base case
+    if (root==NULL)
+        return;
+ 
+    // Store nodes in Inorder (which is sorted
+    // order for BST)
+    storeBSTNodes(root->left, nodes);
+    nodes.push_back(root);
+    storeBSTNodes(root->right, nodes);
+}
+ 
+/* Recursive function to construct binary tree */
+Node* buildTreeUtil(vector<Node*> &nodes, int start,
+                   int end)
+{
+    // base case
+    if (start > end)
+        return NULL;
+ 
+    /* Get the middle element and make it root */
+    int mid = (start + end)/2;
+    Node *root = nodes[mid];
+ 
+    /* Using index in Inorder traversal, construct
+       left and right subtress */
+    root->left  = buildTreeUtil(nodes, start, mid-1);
+    root->right = buildTreeUtil(nodes, mid+1, end);
+ 
+    return root;
+}
+ 
+// This functions converts an unbalanced BST to
+// a balanced BST
+Node* buildTree(Node* root)
+{
+    // Store nodes of given BST in sorted order
+    vector<Node *> nodes;
+    storeBSTNodes(root, nodes);
+ 
+    // Constructs BST from nodes[]
+    int n = nodes.size();
+    return buildTreeUtil(nodes, 0, n-1);
+}
+ 
+// Utility function to create a new node
+Node* newNode(int data)
+{
+    Node* node = new Node;
+    node->data = data;
+    node->left = node->right = NULL;
+    return (node);
+}
+ 
+##############################################################
+
+Q.26. Kth smallest element in BST
+
+// Function to find k'th smallest element in BST
+// Here count denotes the number of nodes processed so far
+int count = 0;
+Node* kthSmallest(Node* root, int& k)
+{
+    // base case
+    if (root == NULL)
+        return NULL;
+ 
+    // search in left subtree
+    Node* left = kthSmallest(root->left, k);
+ 
+    // if k'th smallest is found in left subtree, return it
+    if (left != NULL)
+        return left;
+ 
+    // if current element is k'th smallest, return it
+    count++;
+    if (count == k)
+        return root;
+ 
+    // else search in right subtree
+    return kthSmallest(root->right, k);
+}
+ 
+// Function to print k'th smallest element in BST
+void printKthSmallest(Node* root, int k)
+{
+    // maintain index to count number of nodes processed so far
+ 
+    Node* res = kthSmallest(root, k);
+    if (res == NULL)
+        cout << "There are less than k nodes in the BST";
+    else
+        cout << "K-th Smallest Element is " << res->data;
+}
+
+###############################################################                      
+
